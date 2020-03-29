@@ -21,11 +21,13 @@ def main():
     height = result['map']['info']['height']
     ar = np.array(result['map']['data']).reshape([width,height])
     
-    ar = np.where(ar == -1, 0, ar)
+    ar = np.where(ar == -1, 255, ar)
 
     plt.gray()
     plt.imshow(ar)
     plt.show()
+
+
     
 
     client.terminate()
