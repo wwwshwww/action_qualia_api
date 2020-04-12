@@ -133,10 +133,11 @@ class TimeSynchronizer():
         
         self.callback(*result)
 
+## class that create and send goal of pose to move_base
 class MobileClient2D():
-    def __init__(self, ros_client: rlp.Ros):
+    def __init__(self, ros_client: rlp.Ros, callback: callable):
         self.ros_client = ros_client
-        self.mb_scheduler = ActionScheduler(self.ros_client, '/move_base', 'move_base_msgs/MoveBaseAction', self.ppp)
+        self.mb_scheduler = ActionScheduler(self.ros_client, '/move_base', 'move_base_msgs/MoveBaseAction', callback)
         # self.ros.register_servise('/dynamic_map', 'nav_msgs/GetMap')
 
         self.is_get_map = False
@@ -229,15 +230,12 @@ class MobileClient2D():
         return rlp.Message(message)
 
     ## set goal message that simple ahead pose
-    def set_goal(self, x, y, angle):
+    def set_goal(self, x, y, angle=None):
         rel_pos_2d = (x,y,0)
         rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(x,y))
         pos, ori = self.get_base_pose_from_body(rel_pos_2d, rel_ori)
         mes = self.create_message_move_base_goal(pos, ori)
         self.mb_scheduler.append_goal(mes)
-    
-    def ppp(self, result):
-        print(result)
 
     def start(self):
         self.mb_scheduler.start()
@@ -250,10 +248,14 @@ def main():
     rc = RosClient('localhost', 9090)
     # rc.register_servise('/dynamic_map', 'nav_msgs/GetMap')
     # print(rc.call_service('/dynamic_map'))
-    ms = MobileClient2D(rc.client)
+    ms = MobileClient2D(rc.client, lambda r: print('result after send goal: ', r))
     ms.wait_for_ready()
+    print('map_header: ', ms.map_header)
 
-    print(ms.map_header)
+    ms.set_goal(0, 2) # to schedule goal that go ahead 2 from robot body
+    ms.set_goal(3, 3) # relative (x:3, y:3)
+
+    time.sleep(100)
 
     rc.client.terminate()
 
