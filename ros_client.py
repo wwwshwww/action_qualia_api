@@ -9,6 +9,8 @@ from threading import Timer
 
 import matplotlib.pyplot as plt
 
+roslibpy.actionlib.DEFAULT_CONNECTION_TIMEOUT = 10
+
 class RosClient():
     def __init__(self, master_name :str, port :int):
         self.master_name = master_name
@@ -80,7 +82,7 @@ class ActionScheduler(Timer):
 ## make message that has subscribed synchronized in time approximate, before call a callback function
 class TimeSynchronizer():
     class Subscriber():
-        def __init(self, sync: TimeSynchronizer ,listener: rlp.Topic, queue_size: int):
+        def __init(self, sync, listener: rlp.Topic, queue_size: int):
             self.sync = sync
             self.listener = listener
             self.queue = deque(maxlen=queue_size)
@@ -124,14 +126,14 @@ class TimeSynchronizer():
                     break
             
             arr = np.abs(np.array(tq)-cri_time)
-            min_i = np.argmin(arr)
-            result[k] = self.listeners[k].queue[min_i]
-            for i in range(len(tq)):
+            abs_min_i = np.argmin(arr)
+            result[k] = self.listeners[k].queue[abs_min_i]
+            for i in range(abs_min_i+1):
                 self.listeners[k].queue.popleft()
         
         self.callback(*result)
 
-class MobileSystem_2D():
+class MobileClient2D():
     def __init__(self, ros_client: rlp.Ros):
         self.ros_client = ros_client
         self.mb_scheduler = ActionScheduler(self.ros_client, '/move_base', 'move_base_msgs/MoveBaseAction', self.ppp)
@@ -244,10 +246,11 @@ class MobileSystem_2D():
         self.mb_scheduler.cancel()
 
 def main():
-    rc = RosClient('10.244.1.117', 9090) # 
+    # rc = RosClient('10.244.1.117', 9090) #   
+    rc = RosClient('localhost', 9090)
     # rc.register_servise('/dynamic_map', 'nav_msgs/GetMap')
     # print(rc.call_service('/dynamic_map'))
-    ms = MobileSystem_2D(rc.client)
+    ms = MobileClient2D(rc.client)
     ms.wait_for_ready()
 
     print(ms.map_header)
