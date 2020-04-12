@@ -208,7 +208,7 @@ class MobileClient2D():
     def get_index_from_coordinates(self, xy: tuple) -> tuple:
         return xy[1] + self.map_padsize_y, xy[0] - self.map_padsize_x
 
-    def create_message_move_base_goal(self, position: tuple, orientation: np.quaternion) -> dict:
+    def create_message_move_base_goal(self, position: tuple, orientation: np.quaternion) -> rlp.Message:
         message = {
             'target_pose': {
                 'header': self.map_header,
@@ -238,13 +238,13 @@ class MobileClient2D():
         self.mb_scheduler.append_goal(mes)
 
     def start(self):
-        self.mb_scheduler.start()
+        self.mb_scheduler.run()
 
     def stop(self):
         self.mb_scheduler.cancel()
 
 def main():
-    # rc = RosClient('10.244.1.117', 9090) #   
+    # rc = RosClient('10.244.1.117', 9090)
     rc = RosClient('localhost', 9090)
     # rc.register_servise('/dynamic_map', 'nav_msgs/GetMap')
     # print(rc.call_service('/dynamic_map'))
@@ -252,10 +252,11 @@ def main():
     ms.wait_for_ready()
     print('map_header: ', ms.map_header)
 
-    ms.set_goal(0, 2) # to schedule goal that go ahead 2 from robot body
-    ms.set_goal(3, 3) # relative (x:3, y:3)
-
+    ms.start()
+    ms.set_goal(0, 2) # set scheduler a goal that go ahead 2 from robot body  
+    ms.set_goal(3, 3) # (x:3, y:3)
     time.sleep(100)
+    ms.stop()
 
     rc.client.terminate()
 
