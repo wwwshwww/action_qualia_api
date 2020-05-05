@@ -65,6 +65,7 @@ class ActionScheduler(Timer):
         self._update_state()
         self.callback(result)
 
+    ## need to change data type of goal to such as  <Goal, tag>, to be able to cancel
     def append_goal(self, goal_message):
         goal = rlp.actionlib.Goal(self.action_client, goal_message)
         self.goal_queue.append(goal)
@@ -135,18 +136,20 @@ class TimeSynchronizer():
 
 ## class that create and send goal of pose to move_base
 class MobileClient2D():
-    def __init__(self, ros_client: rlp.Ros, callback: callable):
+    def __init__(self, ros_client: rlp.Ros, goal_callback: callable, odom_topic: str='/odom', map_topic: str='/map'):
         self.ros_client = ros_client
-        self.mb_scheduler = ActionScheduler(self.ros_client, '/move_base', 'move_base_msgs/MoveBaseAction', callback)
-        # self.ros.register_servise('/dynamic_map', 'nav_msgs/GetMap')
+        self.result_callback = goal_callback
+        self.mb_scheduler = ActionScheduler(self.ros_client, '/move_base', 'move_base_msgs/MoveBaseAction', self.result_callback)
 
         self.is_get_map = False
-        self.map_listener = rlp.Topic(self.ros_client, '/map', 'nav_msgs/OccupancyGrid')
-        self.map_listener.subscribe(self._update_map)
+        self.map_listener = rlp.Topic(self.ros_client, map_topic, 'nav_msgs/OccupancyGrid')
+        # self.map_listener.subscribe(self._update_map)
+        self.map_listener.subscribe(lambda s: print('mapppp'))
         
         self.is_get_odom = False
-        self.odom_listener = rlp.Topic(self.ros_client, '/odom', 'nav_msgs/Odometry')
-        self.odom_listener.subscribe(self._update_odometry)
+        # self.odom_listener = rlp.Topic(self.ros_client, odom_topic, 'nav_msgs/Odometry')
+        # self.odom_listener.subscribe(self._update_odometry)
+        
 
     @property
     def is_reached(self):
@@ -160,16 +163,19 @@ class MobileClient2D():
         self.map_padsize_y = (self.map_info['height']-1)//2
         self.map = np.array(message['data']).reshape([self.map_info['height'],self.map_info['width']])
         self.is_get_map = True
+        print('map subscribed.')
 
     def _update_odometry(self, message):
-        print(message)
+        # print(message)
         pos = message['pose']['pose']['position']
         ori = message['pose']['pose']['orientation']
         self.position = np.array([pos['x'], pos['y']])
         self.orientation = np.quaternion(ori['w'], ori['x'], ori['y'], ori['z'])
         self.is_get_odom = True
+        # print('odom subscribed.')
 
     def wait_for_ready(self, timeout=10.0):
+        print('wait for ros message...')
         sec = 0.001
         end_time = time.time() + timeout
         while True:
@@ -230,7 +236,7 @@ class MobileClient2D():
         return rlp.Message(message)
 
     ## set goal message that simple ahead pose
-    def set_goal(self, x, y, angle=None):
+    def set_goal_relative(self, x, y, angle=None):
         rel_pos_2d = (x,y,0)
         rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(x,y))
         pos, ori = self.get_base_pose_from_body(rel_pos_2d, rel_ori)
@@ -248,14 +254,17 @@ def main():
     rc = RosClient('localhost', 9090)
     # rc.register_servise('/dynamic_map', 'nav_msgs/GetMap')
     # print(rc.call_service('/dynamic_map'))
-    ms = MobileClient2D(rc.client, lambda r: print('result after send goal: ', r))
-    ms.wait_for_ready()
+    ms = MobileClient2D(rc.client, lambda r: print('result that sent a goal to move_base: ', r), odom_topic='/odometry/filtered')
+    ms.wait_for_ready(80)
     print('map_header: ', ms.map_header)
 
-    ms.start()
-    ms.set_goal(0, 2) # set scheduler a goal that go ahead 2 from robot body  
-    ms.set_goal(3, 3) # (x:3, y:3)
+    ## you can set goal any time not only after call start().
+    ms.start() ## make goal appended to queue, executable
+    ms.set_goal_relative(0, 2) ## set scheduler a goal that go ahead 2 from robot body  
+    ms.set_goal_relative(3, 3) ## relative (x:right:3, y:front:3)
     time.sleep(100)
+    ms.set_goal_relative(0,-6)
+    time.sleep(50)
     ms.stop()
 
     rc.client.terminate()
