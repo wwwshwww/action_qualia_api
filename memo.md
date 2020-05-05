@@ -20,4 +20,4 @@ action_server debug
 ```
 $ rosrun actionlib axclient.py <action server topic>
 ```
-default action server tipic: `/move_base`
+default action server topic: `/move_base`

@@ -7,7 +7,7 @@ from collections import deque
 import time
 from threading import Timer
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 roslibpy.actionlib.DEFAULT_CONNECTION_TIMEOUT = 10
 
@@ -143,12 +143,11 @@ class MobileClient2D():
 
         self.is_get_map = False
         self.map_listener = rlp.Topic(self.ros_client, map_topic, 'nav_msgs/OccupancyGrid')
-        # self.map_listener.subscribe(self._update_map)
-        self.map_listener.subscribe(lambda s: print('mapppp'))
+        self.map_listener.subscribe(self._update_map)
         
         self.is_get_odom = False
-        # self.odom_listener = rlp.Topic(self.ros_client, odom_topic, 'nav_msgs/Odometry')
-        # self.odom_listener.subscribe(self._update_odometry)
+        self.odom_listener = rlp.Topic(self.ros_client, odom_topic, 'nav_msgs/Odometry')
+        self.odom_listener.subscribe(self._update_odometry)
         
 
     @property
@@ -163,16 +162,13 @@ class MobileClient2D():
         self.map_padsize_y = (self.map_info['height']-1)//2
         self.map = np.array(message['data']).reshape([self.map_info['height'],self.map_info['width']])
         self.is_get_map = True
-        print('map subscribed.')
 
     def _update_odometry(self, message):
-        # print(message)
         pos = message['pose']['pose']['position']
         ori = message['pose']['pose']['orientation']
-        self.position = np.array([pos['x'], pos['y']])
+        self.position = np.array([pos['x'], pos['y'], 0])
         self.orientation = np.quaternion(ori['w'], ori['x'], ori['y'], ori['z'])
         self.is_get_odom = True
-        # print('odom subscribed.')
 
     def wait_for_ready(self, timeout=10.0):
         print('wait for ros message...')
@@ -182,6 +178,7 @@ class MobileClient2D():
             if self.is_get_odom and self.is_get_map:
                 break
             elif time.time()+sec >= end_time:
+                print('yeah')
                 self.ros_client.terminate()
                 raise Exception('Timeout you can\'t get map or odometry.')
             time.sleep(sec)
@@ -251,7 +248,8 @@ class MobileClient2D():
 
 def main():
     # rc = RosClient('10.244.1.117', 9090)
-    rc = RosClient('localhost', 9090)
+    rc = RosClient('10.244.1.176', 9090)
+    # rc = RosClient('localhost', 9090)
     # rc.register_servise('/dynamic_map', 'nav_msgs/GetMap')
     # print(rc.call_service('/dynamic_map'))
     ms = MobileClient2D(rc.client, lambda r: print('result that sent a goal to move_base: ', r), odom_topic='/odometry/filtered')

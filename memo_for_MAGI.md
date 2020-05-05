@@ -15,7 +15,7 @@ $ apt-get install -y ros-kinetic-rosbridge-server ros-kinetic-tf2-web-republishe
 
 
 ### install and launch `husky`
-`husly` is cool simulater.
+`husky` is cool simulater.
 ```
 $ apt-get install -y ros-kinetic-husky-navigation ros-kinetic-husky-gazebo ros-kinetic-husky-viz
 ```
