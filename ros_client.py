@@ -171,37 +171,32 @@ class MobileClient2D():
         self.is_get_odom = True
 
     def wait_for_ready(self, timeout=10.0):
-        print('wait for ros message...')
+        print('wait for ros message...', end=' ')
         sec = 0.001
         end_time = time.time() + timeout
         while True:
             if self.is_get_odom and self.is_get_map:
+                print('got ready')
                 break
             elif time.time()+sec >= end_time:
-                print('yeah')
                 self.ros_client.terminate()
                 raise Exception('Timeout you can\'t get map or odometry.')
             time.sleep(sec)
 
     ## perhaps nether need to create class of pose calculating
     @staticmethod
-    def get_base_pose_from_relative(from_position, from_orientation: np.quaternion, to_position, to_orientation: np.quaternion) -> (np.array, np.quaternion):
-        from_pos_q = np.quaternion(0,from_position[0],from_position[1],from_position[2])
+    def get_base_pose(base_vec: np.quaternion, base_orient: np.quaternion, rel_vec: np.quaternion, rel_orient: np.quaternion) -> (np.quaternion, np.quaternion):
         ## rotate angle (alpha,beta,gamma):(atan(z/y),atan(x/z),atan(x/y))
-        to_angle = (math.atan2(to_position[2], to_position[1]), math.atan2(to_position[0], to_position[2]), math.atan2(to_position[0],to_position[1]))
+        to_angle = (math.atan2(rel_vec.z, rel_vec.y), math.atan2(rel_vec.x, rel_vec.z), math.atan2(rel_vec.x,rel_vec.y))
         to_angle_q = quaternion.from_euler_angles(to_angle)
-        to_pos_q = np.quaternion(0, to_position[0], to_position[1], to_position[2])
-        # from_vec_dq = [1, from_pos_q]
-        to_dq = [to_angle_q, 0.5*to_pos_q*to_angle_q]
-        goal_pos_dq = [1, to_dq[0]*from_pos_q*to_dq[0].conj()+to_pos_q]
-        goal_pos_orient_dq = [1, from_orientation*goal_pos_dq[1]*from_orientation.conj()]
-        position = np.array([goal_pos_orient_dq[1].x, goal_pos_orient_dq[1].y, goal_pos_orient_dq[1].z])
-        orientation = to_orientation*from_orientation
-        ## returnable (np.array, np.quaternion)
-        return position, orientation
+        t = (-base_orient) * rel_vec * (-base_orient).conj()
+        goal_vec = base_vec+t
+        goal_orient = base_orient*rel_orient
+        return goal_vec, goal_orient
 
-    def get_base_pose_from_body(self, position, orientation=np.quaternion(1,0,0,0)) -> (np.array, np.quaternion):
-        return self.get_base_pose_from_relative(self.position, self.orientation, position, orientation)
+    def get_base_pose_from_body(self, position: np.quaternion, orientation=np.quaternion(1,0,0,0)):
+        body_pos = np.quaternion(0, *self.position)
+        return self.get_base_pose(body_pos, self.orientation, position, orientation)
 
     ## map img's (i,j) to base map's (x,y)
     def get_coordinates_from_map(self, ij: tuple) -> tuple:
@@ -234,11 +229,14 @@ class MobileClient2D():
 
     ## set goal message that simple ahead pose
     def set_goal_relative(self, x, y, angle=None):
-        rel_pos_2d = (x,y,0)
-        rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(x,y))
+        rel_pos_2d = np.quaternion(0,x,y,0)
+        print(f'---set ({x},{y})---')
+        rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(y,x))
         pos, ori = self.get_base_pose_from_body(rel_pos_2d, rel_ori)
-        mes = self.create_message_move_base_goal(pos, ori)
+        print(f'pos: {pos}')
+        mes = self.create_message_move_base_goal((pos.x, pos.y, pos.z), ori)
         self.mb_scheduler.append_goal(mes)
+        print('----------------')
 
     def start(self):
         self.mb_scheduler.run()
@@ -252,18 +250,23 @@ def main():
     # rc = RosClient('localhost', 9090)
     # rc.register_servise('/dynamic_map', 'nav_msgs/GetMap')
     # print(rc.call_service('/dynamic_map'))
-    ms = MobileClient2D(rc.client, lambda r: print('result that sent a goal to move_base: ', r), odom_topic='/odometry/filtered')
+
+    # odomname = '/odometry/filtered'
+    odomname = '/odom'
+    ms = MobileClient2D(rc.client, lambda r: print('result that sent a goal to move_base: ', r), odom_topic=odomname)
     ms.wait_for_ready(80)
     print('map_header: ', ms.map_header)
+    print('odom:', ms.position, [math.degrees(v) for v in quaternion.as_euler_angles(ms.orientation)])
 
     ## you can set goal any time not only after call start().
     ms.start() ## make goal appended to queue, executable
-    ms.set_goal_relative(0, 2) ## set scheduler a goal that go ahead 2 from robot body  
-    ms.set_goal_relative(3, 3) ## relative (x:right:3, y:front:3)
-    time.sleep(100)
+    ms.set_goal_relative(0, 2) ## set scheduler a goal that go ahead 2 from robot body
+    # ms.set_goal_relative(3, 3) ## relative (x:right:3, y:front:3)
+    time.sleep(30)
     ms.set_goal_relative(0,-6)
-    time.sleep(50)
+    time.sleep(30)
     ms.stop()
+    print('finish')
 
     rc.client.terminate()
 

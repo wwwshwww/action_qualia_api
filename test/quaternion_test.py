@@ -30,11 +30,11 @@ def main():
     to_r = 60
 
     base_angle_q = quaternion.from_euler_angles(0,0,base_angle)
-    base_pos = (int(base_r*math.cos(base_angle)),int(base_r*math.sin(base_angle)),0)
+    base_pos = (round(base_r*math.cos(base_angle)),round(base_r*math.sin(base_angle)),0)
     base_pos_q = np.quaternion(0, base_pos[0], base_pos[1], base_pos[2])
     base_orient_q = quaternion.from_euler_angles(base_orient)
     to_angle_q = quaternion.from_euler_angles(0,0,to_angle)
-    to_pos = (int(to_r*math.cos(to_angle)),int(to_r*math.sin(to_angle)),0)
+    to_pos = (round(to_r*math.cos(to_angle)),round(to_r*math.sin(to_angle)),0)
     to_pos_q = np.quaternion(0, to_pos[0], to_pos[1], to_pos[2])
 
     # ijk = np.array([0,0,1])*math.sin(to_angle/2)
@@ -55,14 +55,20 @@ def main():
     # r': rの逆クォータニオン
     # t: 相対的に平行移動させたい量（ベクトル）を表す純クオータニオン
     # transrated_pose_dq = 1 + ε(rvr'+t)
-    
-    goal_pos_dq = [1, to_dq[0]*base_pos_q*to_dq[0].conj()+to_pos_q]
+
     goal_pos_q = to_angle_q*base_pos_q*to_angle_q.conj()
+    goal_pos_dq = [1, to_dq[0]*base_pos_q*to_dq[0].conj()+to_pos_q]
     goal_pos_orient_dq = [1, base_orient_q*goal_pos_dq[1]*base_orient_q.conj()]
 
-    mapimg[int(goal_pos_q.x), int(goal_pos_q.y)] = 255
-    mapimg[int(goal_pos_dq[1].x), int(goal_pos_dq[1].y)] = 255
-    mapimg[int(goal_pos_orient_dq[1].x), int(goal_pos_orient_dq[1].y)] = 255
+    print(goal_pos_orient_dq[1])
+
+    getp, geto = get_pose(base_pos, base_angle_q, to_pos, to_angle_q)
+    print('getp:', getp)
+    mapimg[int(getp[1]), int(getp[0])] = 255
+
+    mapimg[round(goal_pos_q.x), round(goal_pos_q.y)] = 255
+    mapimg[round(goal_pos_dq[1].x), round(goal_pos_dq[1].y)] = 255
+    mapimg[round(goal_pos_orient_dq[1].x), round(goal_pos_orient_dq[1].y)] = 255
     mapimg[base_pos[0], base_pos[1]] = 255
 
     # orient = np.array((4,5,0))
