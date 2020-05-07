@@ -57,7 +57,8 @@ class ActionScheduler(Timer):
         self.thread.start()
 
         if not self.state&1 and not self.state>>1&1:
-            self.current_goal = self.goal_queue.popleft()
+            message_closure = self.goal_queue.popleft()
+            self.current_goal = rlp.actionlib.Goal(self.action_client, message_closure())
             self._update_state()
             self.current_goal.send(self._finish)
 
@@ -66,9 +67,8 @@ class ActionScheduler(Timer):
         self.callback(result)
 
     ## need to change data type of goal to such as  <Goal, tag>, to be able to cancel
-    def append_goal(self, goal_message):
-        goal = rlp.actionlib.Goal(self.action_client, goal_message)
-        self.goal_queue.append(goal)
+    def append_goal(self, message_closure):
+        self.goal_queue.append(message_closure)
         self._update_state()
 
     def run(self):
@@ -194,9 +194,21 @@ class MobileClient2D():
         goal_orient = base_orient*rel_orient
         return goal_vec, goal_orient
 
+    def get_base_pose_only_axis_z(self, base_vec, base_orient, rel_vec, rel_orient):
+        to_angle = (math.atan2(rel_vec.x,rel_vec.y))
+        to_angle_q = quaternion.from_euler_angles(0,0,to_angle)
+        t = (-base_orient) * rel_vec * (-base_orient).conj()
+        goal_vec = base_vec+t
+        goal_orient = base_orient*rel_orient
+        return goal_vec, goal_orient
+
     def get_base_pose_from_body(self, position: np.quaternion, orientation=np.quaternion(1,0,0,0)):
         body_pos = np.quaternion(0, *self.position)
         return self.get_base_pose(body_pos, self.orientation, position, orientation)
+
+    def get_base_pose_from_body_axis_z(self, position: np.quaternion, orientation=np.quaternion(1,0,0,0)):
+        body_pos = np.quaternion(0, *self.position)
+        return self.get_base_pose_only_axis_z(body_pos, self.orientation, position, orientation)
 
     ## map img's (i,j) to base map's (x,y)
     def get_coordinates_from_map(self, ij: tuple) -> tuple:
@@ -228,15 +240,20 @@ class MobileClient2D():
         return rlp.Message(message)
 
     ## set goal message that simple ahead pose
-    def set_goal_relative(self, x, y, angle=None):
+    def set_goal_relative_xy(self, x, y, angle=None, is_dynamic=False):
         rel_pos_2d = np.quaternion(0,x,y,0)
-        print(f'---set ({x},{y})---')
-        rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(y,x))
-        pos, ori = self.get_base_pose_from_body(rel_pos_2d, rel_ori)
-        print(f'pos: {pos}')
-        mes = self.create_message_move_base_goal((pos.x, pos.y, pos.z), ori)
-        self.mb_scheduler.append_goal(mes)
-        print('----------------')
+        rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(x,y))
+        pos, ori = self.get_base_pose_from_body_axis_z(rel_pos_2d, rel_ori)
+
+        def inner():
+            if is_dynamic:
+                dpos, dori = self.get_base_pose_from_body_axis_z(rel_pos_2d, rel_ori)
+                return self.create_message_move_base_goal((dpos.x, dpos.y, dpos.z), dori)
+            else:
+                return self.create_message_move_base_goal((pos.x, pos.y, pos.z), ori)
+
+        self.mb_scheduler.append_goal(inner)
+        print(f'scheduling relative ({x},{y})')
 
     def start(self):
         self.mb_scheduler.run()
@@ -260,10 +277,10 @@ def main():
 
     ## you can set goal any time not only after call start().
     ms.start() ## make goal appended to queue, executable
-    ms.set_goal_relative(0, 2) ## set scheduler a goal that go ahead 2 from robot body
+    ms.set_goal_relative_xy(0, 2, True) ## set scheduler a goal that go ahead 2 from robot body
     # ms.set_goal_relative(3, 3) ## relative (x:right:3, y:front:3)
     time.sleep(30)
-    ms.set_goal_relative(0,-6)
+    ms.set_goal_relative_xy(0,-6, True)
     time.sleep(30)
     ms.stop()
     print('finish')
