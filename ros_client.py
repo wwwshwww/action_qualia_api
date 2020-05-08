@@ -16,7 +16,7 @@ class RosClient():
         self.master_name = master_name
         self.port = port
         self.client = rlp.Ros(self.master_name, port=self.port) #rlp.Ros('10.244.1.117', port=9090)\
-        self.client.on_ready(lambda: print('Is ROS connected: ', self.client.is_connected))
+        self.client.on_ready(lambda: print('is ROS connected: ', self.client.is_connected))
         self.client.run()
 
         self.services = {} # {service_name: rlp.Service}
@@ -135,7 +135,7 @@ class TimeSynchronizer():
         self.callback(*result)
 
 ## class that create and send goal of pose to move_base
-class MobileClient2D():
+class MobileClient():
     def __init__(self, ros_client: rlp.Ros, goal_callback: callable, odom_topic: str='/odom', map_topic: str='/map'):
         self.ros_client = ros_client
         self.result_callback = goal_callback
@@ -148,7 +148,6 @@ class MobileClient2D():
         self.is_get_odom = False
         self.odom_listener = rlp.Topic(self.ros_client, odom_topic, 'nav_msgs/Odometry')
         self.odom_listener.subscribe(self._update_odometry)
-        
 
     @property
     def is_reached(self):
@@ -166,7 +165,7 @@ class MobileClient2D():
     def _update_odometry(self, message):
         pos = message['pose']['pose']['position']
         ori = message['pose']['pose']['orientation']
-        self.position = np.array([pos['x'], pos['y'], 0])
+        self.position = np.array([pos['x'], pos['y'], pos['z']])
         self.orientation = np.quaternion(ori['w'], ori['x'], ori['y'], ori['z'])
         self.is_get_odom = True
 
@@ -183,20 +182,14 @@ class MobileClient2D():
                 raise Exception('Timeout you can\'t get map or odometry.')
             time.sleep(sec)
 
-    ## perhaps nether need to create class of pose calculating
     @staticmethod
-    def get_base_pose(base_vec: np.quaternion, base_orient: np.quaternion, rel_vec: np.quaternion, rel_orient: np.quaternion) -> (np.quaternion, np.quaternion):
+    def get_relarive_orientation(rel_vec: np.quaternion) -> np.quaternion:
         ## rotate angle (alpha,beta,gamma):(atan(z/y),atan(x/z),atan(x/y))
         to_angle = (math.atan2(rel_vec.z, rel_vec.y), math.atan2(rel_vec.x, rel_vec.z), math.atan2(rel_vec.x,rel_vec.y))
-        to_angle_q = quaternion.from_euler_angles(to_angle)
-        t = (-base_orient) * rel_vec * (-base_orient).conj()
-        goal_vec = base_vec+t
-        goal_orient = base_orient*rel_orient
-        return goal_vec, goal_orient
+        return quaternion.from_euler_angles(to_angle)
 
-    def get_base_pose_only_axis_z(self, base_vec, base_orient, rel_vec, rel_orient):
-        to_angle = (math.atan2(rel_vec.x,rel_vec.y))
-        to_angle_q = quaternion.from_euler_angles(0,0,to_angle)
+    @staticmethod
+    def get_base_pose(base_vec: np.quaternion, base_orient: np.quaternion, rel_vec: np.quaternion, rel_orient: np.quaternion) -> (np.quaternion, np.quaternion):
         t = (-base_orient) * rel_vec * (-base_orient).conj()
         goal_vec = base_vec+t
         goal_orient = base_orient*rel_orient
@@ -205,10 +198,6 @@ class MobileClient2D():
     def get_base_pose_from_body(self, position: np.quaternion, orientation=np.quaternion(1,0,0,0)):
         body_pos = np.quaternion(0, *self.position)
         return self.get_base_pose(body_pos, self.orientation, position, orientation)
-
-    def get_base_pose_from_body_axis_z(self, position: np.quaternion, orientation=np.quaternion(1,0,0,0)):
-        body_pos = np.quaternion(0, *self.position)
-        return self.get_base_pose_only_axis_z(body_pos, self.orientation, position, orientation)
 
     ## map img's (i,j) to base map's (x,y)
     def get_coordinates_from_map(self, ij: tuple) -> tuple:
@@ -243,17 +232,17 @@ class MobileClient2D():
     def set_goal_relative_xy(self, x, y, angle=None, is_dynamic=False):
         rel_pos_2d = np.quaternion(0,x,y,0)
         rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(x,y))
-        pos, ori = self.get_base_pose_from_body_axis_z(rel_pos_2d, rel_ori)
+        pos, ori = self.get_base_pose_from_body(rel_pos_2d, rel_ori*self.orientation)
 
         def inner():
             if is_dynamic:
-                dpos, dori = self.get_base_pose_from_body_axis_z(rel_pos_2d, rel_ori)
+                dpos, dori = self.get_base_pose_from_body(rel_pos_2d, rel_ori*self.orientation)
                 return self.create_message_move_base_goal((dpos.x, dpos.y, dpos.z), dori)
             else:
                 return self.create_message_move_base_goal((pos.x, pos.y, pos.z), ori)
 
         self.mb_scheduler.append_goal(inner)
-        print(f'scheduling relative ({x},{y})')
+        print(f'scheduling ({pos.x},{pos.y}, {pos.z})')
 
     def start(self):
         self.mb_scheduler.run()
@@ -270,17 +259,17 @@ def main():
 
     # odomname = '/odometry/filtered'
     odomname = '/odom'
-    ms = MobileClient2D(rc.client, lambda r: print('result that sent a goal to move_base: ', r), odom_topic=odomname)
-    ms.wait_for_ready(80)
+    ms = MobileClient(rc.client, lambda r: print('reached goal', r), odom_topic=odomname)
+    ms.wait_for_ready(timeout=80)
     print('map_header: ', ms.map_header)
     print('odom:', ms.position, [math.degrees(v) for v in quaternion.as_euler_angles(ms.orientation)])
 
     ## you can set goal any time not only after call start().
     ms.start() ## make goal appended to queue, executable
-    ms.set_goal_relative_xy(0, 2, True) ## set scheduler a goal that go ahead 2 from robot body
+    ms.set_goal_relative_xy(0, 0.5, True) ## set scheduler a goal that go ahead 2 from robot body
     # ms.set_goal_relative(3, 3) ## relative (x:right:3, y:front:3)
     time.sleep(30)
-    ms.set_goal_relative_xy(0,-6, True)
+    ms.set_goal_relative_xy(0,0.5, True)
     time.sleep(30)
     ms.stop()
     print('finish')
