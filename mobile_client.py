@@ -11,25 +11,6 @@ from threading import Timer
 
 roslibpy.actionlib.DEFAULT_CONNECTION_TIMEOUT = 10
 
-class RosClient():
-    def __init__(self, master_name :str, port :int):
-        self.master_name = master_name
-        self.port = port
-        self.client = rlp.Ros(self.master_name, port=self.port) #rlp.Ros('10.244.1.117', port=9090)\
-        self.client.on_ready(lambda: print('is ROS connected: ', self.client.is_connected))
-        self.client.run()
-
-        self.services = {} # {service_name: rlp.Service}
-        #botsu# {service_name: {'service': rlp.Service, 'args': {args_key: []}}}
-
-    def register_servise(self, service_name: str, service_type: str):
-        self.services[service_name] = rlp.Service(self.client, service_name, service_type)
-
-    def call_service(self, service_name: str, args: list=None):
-        srv = self.services[service_name]
-        req = rlp.ServiceRequest(args)
-        return srv.call(req)
-
 ## FCFS (First Come First Served）
 class ActionScheduler(Timer):
     STATUS_READY_TO_START = 0b01
@@ -170,7 +151,7 @@ class MobileClient():
         self.is_get_odom = True
 
     def wait_for_ready(self, timeout=10.0):
-        print('wait for ros message...', end=' ')
+        print('wait for ROS message...', end=' ')
         sec = 0.001
         end_time = time.time() + timeout
         while True:
@@ -183,7 +164,7 @@ class MobileClient():
             time.sleep(sec)
 
     @staticmethod
-    def get_relarive_orientation(rel_vec: np.quaternion) -> np.quaternion:
+    def get_relative_orientation(rel_vec: np.quaternion) -> np.quaternion:
         ## rotate angle (alpha,beta,gamma):(atan(z/y),atan(x/z),atan(x/y))
         to_angle = (math.atan2(rel_vec.z, rel_vec.y), math.atan2(rel_vec.x, rel_vec.z), math.atan2(rel_vec.x,rel_vec.y))
         return quaternion.from_euler_angles(to_angle)
@@ -242,7 +223,7 @@ class MobileClient():
                 return self.create_message_move_base_goal((pos.x, pos.y, pos.z), ori)
 
         self.mb_scheduler.append_goal(inner)
-        print(f'scheduling ({pos.x},{pos.y}, {pos.z})')
+        print(f'scheduling ({pos.x},{pos.y},{pos.z})')
 
     def start(self):
         self.mb_scheduler.run()
@@ -251,22 +232,21 @@ class MobileClient():
         self.mb_scheduler.cancel()
 
 def main():
-    # rc = RosClient('10.244.1.117', 9090)
-    rc = RosClient('10.244.1.176', 9090)
-    # rc = RosClient('localhost', 9090)
-    # rc.register_servise('/dynamic_map', 'nav_msgs/GetMap')
-    # print(rc.call_service('/dynamic_map'))
+    # rc = rlp.Ros('localhost', port=9090)
+    client = rlp.Ros('10.244.1.176', port=9090)
+    client.on_ready(lambda: print('is ROS connected: ', client.is_connected))
+    client.run()
 
-    # odomname = '/odometry/filtered'
-    odomname = '/odom'
-    ms = MobileClient(rc.client, lambda r: print('reached goal', r), odom_topic=odomname)
+    # topic_o = '/odometry/filtered'
+    topic_o = '/odom'
+    ms = MobileClient(client, lambda r: print('reached goal', r), odom_topic=topic_o)
     ms.wait_for_ready(timeout=80)
     print('map_header: ', ms.map_header)
     print('odom:', ms.position, [math.degrees(v) for v in quaternion.as_euler_angles(ms.orientation)])
 
     ## you can set goal any time not only after call start().
     ms.start() ## make goal appended to queue, executable
-    ms.set_goal_relative_xy(0, 0.5, True) ## set scheduler a goal that go ahead 2 from robot body
+    ms.set_goal_relative_xy(0, 0.5, True) ## set scheduler a goal that go ahead 0.5 from robot body
     # ms.set_goal_relative(3, 3) ## relative (x:right:3, y:front:3)
     time.sleep(30)
     ms.set_goal_relative_xy(0,0.5, True)
@@ -274,7 +254,7 @@ def main():
     ms.stop()
     print('finish')
 
-    rc.client.terminate()
+    client.terminate()
 
 if __name__ == '__main__':
     main()
