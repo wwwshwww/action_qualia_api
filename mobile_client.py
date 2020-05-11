@@ -165,8 +165,8 @@ class MobileClient():
 
     @staticmethod
     def get_relative_orientation(rel_vec: np.quaternion) -> np.quaternion:
-        ## rotate angle (alpha,beta,gamma):(atan(z/y),atan(x/z),atan(x/y))
-        to_angle = (math.atan2(rel_vec.z, rel_vec.y), math.atan2(rel_vec.x, rel_vec.z), math.atan2(rel_vec.x,rel_vec.y))
+        ## rotate angle (alpha,beta,gamma):(atan(z/y),atan(z/x),atan(y/x))
+        to_angle = (math.atan2(rel_vec.z, rel_vec.y), math.atan2(rel_vec.z, rel_vec.x), math.atan2(rel_vec.y,rel_vec.x))
         return quaternion.from_euler_angles(to_angle)
 
     @staticmethod
@@ -212,7 +212,7 @@ class MobileClient():
     ## set goal message that simple ahead pose
     def set_goal_relative_xy(self, x, y, angle=None, is_dynamic=False):
         rel_pos_2d = np.quaternion(0,x,y,0)
-        rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(x,y))
+        rel_ori = quaternion.from_euler_angles(0, 0, math.atan2(y,x))
         pos, ori = self.get_base_pose_from_body(rel_pos_2d, rel_ori*self.orientation)
 
         def inner():
@@ -246,10 +246,10 @@ def main():
 
     ## you can set goal any time not only after call start().
     ms.start() ## make goal appended to queue, executable
-    ms.set_goal_relative_xy(0, 0.5, True) ## set scheduler a goal that go ahead 0.5 from robot body
-    # ms.set_goal_relative(3, 3) ## relative (x:right:3, y:front:3)
+    ms.set_goal_relative_xy(0.5, 0, True) ## set scheduler a goal that go ahead 0.5 from robot body
+    # ms.set_goal_relative(3, 3) ## relative (x:front:3, y:left:3)
     time.sleep(30)
-    ms.set_goal_relative_xy(0,0.5, True)
+    ms.set_goal_relative_xy(0.5, 0, True)
     time.sleep(30)
     ms.stop()
     print('finish')
