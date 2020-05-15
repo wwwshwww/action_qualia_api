@@ -132,14 +132,15 @@ class MobileClient():
 
     @property
     def is_reached(self):
-        return not self.mb_scheduler.state>>1
+        return not self.mb_scheduler.state<<1
 
     ## need to make to be changed design pattern 'update_**'
     def _update_map(self, message):
         self.map_header = message['header']
         self.map_info = message['info']
-        self.map_padsize_x = (self.map_info['width']-1)//2
-        self.map_padsize_y = (self.map_info['height']-1)//2
+        self.map_resolution = self.map_info['resolution']
+        self.map_padsize_x = self.map_info['width']//2
+        self.map_padsize_y = self.map_info['height']//2
         self.map = np.array(message['data']).reshape([self.map_info['height'],self.map_info['width']])
         self.is_get_map = True
 
@@ -218,11 +219,20 @@ class MobileClient():
         def inner():
             if is_dynamic:
                 dpos, dori = self.get_base_pose_from_body(rel_pos_2d, rel_ori*self.orientation)
+                self._log_set(dpos)
                 return self.create_message_move_base_goal((dpos.x, dpos.y, dpos.z), dori)
             else:
+                self._log_set(pos)
                 return self.create_message_move_base_goal((pos.x, pos.y, pos.z), ori)
 
         self.mb_scheduler.append_goal(inner)
+
+    def set_goal(self, position: tuple, orientation: np.quaternion):
+        lm = lambda: self.create_message_move_base_goal(position, orientation)
+        self._log_set(position)
+        self.mb_scheduler.append_goal(lm)
+
+    def _log_set(self, pos: np.quaternion):
         print(f'scheduling ({pos.x},{pos.y},{pos.z})')
 
     def start(self):

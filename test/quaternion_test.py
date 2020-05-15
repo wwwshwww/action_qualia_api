@@ -49,11 +49,12 @@ def main():
     to_dq_conj3 = [to_dq_conj2[0], (-1)*to_dq_conj2[1]]
     # print(to_dq[0]*to_dq[0], to_dq[1]*to_dq[0]-to_dq[0]*to_dq[1])
 
+    ### tyotto machigatterunode sannkouni siteha ikenai
     ## memo (ref: https://qiita.com/mebiusbox2/items/2fa0f0a9ca1cf2044e82)
     # r: 相対的に回転させたい量（姿勢）を表すクォータニオン
     # v: 移動対象のベクトルを表す純クォータニオン
     # r': rの逆クォータニオン
-    # t: 相対的に平行移動させたい量（ベクトル）を表す純クオータニオン
+    # t: 平行移動させたい量（ベクトル）を表す純クオータニオン
     # transrated_pose_dq = 1 + ε(rvr'+t)
 
     goal_pos_q = to_angle_q*base_pos_q*to_angle_q.conj()
@@ -61,10 +62,6 @@ def main():
     goal_pos_orient_dq = [1, base_orient_q*goal_pos_dq[1]*base_orient_q.conj()]
 
     print(goal_pos_orient_dq[1])
-
-    getp, geto = get_pose(base_pos, base_angle_q, to_pos, to_angle_q)
-    print('getp:', getp)
-    mapimg[int(getp[1]), int(getp[0])] = 255
 
     mapimg[round(goal_pos_q.x), round(goal_pos_q.y)] = 255
     mapimg[round(goal_pos_dq[1].x), round(goal_pos_dq[1].y)] = 255

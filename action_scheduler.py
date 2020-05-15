@@ -29,7 +29,10 @@ class GAScheduler(GroundedAction):
         self.pool = pool
 
     def _gen_candidates(self):
-        pass
+        cand = []
+        for a in self.pool:
+            cand.append(a.step())
+        return cand
 
     def _evaluate_poses(self, candidates):
         pass
@@ -47,6 +50,11 @@ def main():
     pool_grounded = GroundedActionPool([ga_map, ga_ele, ga_obs])
 
     sched = GAScheduler('top_scheduler', mc, pool_grounded)
+
+    while(True):
+        if mc.is_reached:
+            pos, ori = sched.step()
+            mc.set_goal(pos, ori)
 
 if __name__ == '__main__':
     main()
