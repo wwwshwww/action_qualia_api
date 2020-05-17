@@ -80,7 +80,7 @@ class TimeSynchronizer():
         self.allow_headerless = allow_headerless
         self.queue = deque(maxlen=queue_size)
 
-    def get_time(self, message):
+    def get_time(self, message) -> int:
         return message['header']['stamp']['secs']*(10**9)+message['header']['stamp']['nsecs']
 
     def synchronize(self):
@@ -141,7 +141,7 @@ class MobileClient():
         self.map_resolution = self.map_info['resolution']
         self.map_padsize_x = self.map_info['width']//2
         self.map_padsize_y = self.map_info['height']//2
-        self.map = np.array(message['data']).reshape([self.map_info['height'],self.map_info['width']])
+        self.map_data = np.array(message['data']).reshape([self.map_info['height'],self.map_info['width']])
         self.is_get_map = True
 
     def _update_odometry(self, message):
@@ -182,11 +182,11 @@ class MobileClient():
         return self.get_base_pose(body_pos, self.orientation, position, orientation)
 
     ## map img's (i,j) to base map's (x,y)
-    def get_coordinates_from_map(self, ij: tuple) -> tuple:
+    def get_coordinates_from_map(self, ij: tuple) -> (int, int):
         return ij[1] - self.map_padsize_x, ij[0] - self.map_padsize_y
 
     ## base map's (x,y) to base map's (i,j)
-    def get_index_from_coordinates(self, xy: tuple) -> tuple:
+    def get_index_from_coordinates(self, xy: tuple) -> (int, int):
         return xy[1] + self.map_padsize_y, xy[0] - self.map_padsize_x
 
     def create_message_move_base_goal(self, position: tuple, orientation: np.quaternion) -> rlp.Message:

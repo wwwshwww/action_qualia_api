@@ -23,11 +23,11 @@ class GroundedAction(metaclass=ABCMeta):
 
     @abstractmethod
     def _gen_candidates(self):
-        pass
+        raise NotImplementedError
 
     @abstractmethod
     def _evaluate_poses(self, candidates):
-        pass
+        raise NotImplementedError
 
     def _logging(self, candidates):
         self.step_log.append(candidates)
@@ -42,6 +42,7 @@ class GroundedStep():
     def __init__(self, owner: GroundedAction, candidates: list):
         self.owner = owner
         self.candidates = candidates
+        self.evaluations = [None]*len(candidates)
         self.elected_pose_id = -1
         self.elected_action_id = -1
 
