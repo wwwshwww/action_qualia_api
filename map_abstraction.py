@@ -23,11 +23,11 @@ class AbstMap():
         self.map_data = self.padding_for_split(super_map, split_shape, self.pad_value)
         self.split_shape = split_shape
         self.resolutions = np.array(self.map_data.shape)//split_shape
-        self.resol_par_grid = np.prod(self.resolutions)
+        self.resol_par_mesh = np.prod(self.resolutions)
 
-        self.density_obstacle = self.density_grid(target=0)
-        self.density_road = self.density_grid(target=255)
-        self.density_unknown = self.density_grid(target=-1)
+        self.density_obstacle = self.density_mesh(target=0)
+        self.density_road = self.density_mesh(target=255)
+        self.density_unknown = self.density_mesh(target=-1)
 
     @staticmethod
     def padding_for_split(img, split_shape, pad_value) -> np.ndarray:
@@ -36,22 +36,23 @@ class AbstMap():
             return np.array(img)
         elif any(mods==0):
             mods = np.array([mods[i] if not mods[i]==0 else split_shape[i] for i in range(len(split_shape))])
-
         ## padding at top
         return np.pad(img, tuple((i,0) for i in split_shape-mods), constant_values=(pad_value,pad_value))
 
-    def density_grid(self, target) -> np.ndarray:
+    def density_mesh(self, target) -> np.ndarray:
         dens = np.zeros(self.split_shape)
         ## for 2D map
         for i in range(len(dens)):
             for j in range(len(dens[0])):
-                dens[i,j] = self.resol_par_grid/len(np.where(self.map_data==target)[0])
+                t = self.map_data[i*self.resolutions[0]:(i+1)*self.resolutions[0],j*self.resolutions[1]:(j+1)*self.resolutions[1]]
+                dens[i,j] = len(np.where(t==target)[0])/self.resol_par_mesh
         return dens
 
 def main():
     img = get_test_img()
-    absimg = AbstMap(img, (2,3))
-    print(f'{absimg.map_data},\n{absimg.map_data.shape},\n{absimg.resolutions}')
+    abst = AbstMap(img, (2,3))
+    print(f'{abst.map_data},\n{abst.map_data.shape},\n{abst.resolutions}')
+    print(f'obs: \n{abst.density_obstacle}, \nroad: \n{abst.density_road}')
 
 if __name__ == '__main__':
     main()
