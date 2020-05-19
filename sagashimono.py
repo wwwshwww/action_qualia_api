@@ -22,16 +22,14 @@ class AreaSelection(GroundedAction):
         pos = [np.quaternion(0,g[0],g[1],0) for g in gsxy]
         ori = [np.quaternion(1,0,0,0) for n in range(len(pos))]
         are = [s.convex_erea for s in sel]
-        stp = GroundedStep(self, pos=pos, ori=ori, are=are)
-        return stp
+        return GroundedStep(self, pos=pos, ori=ori, are=are)
 
     def _evaluate(self, candidates: GroundedStep) -> GroundedStep:
         are = candidates.candidates['are']
         areasum = sum(are)
-        for i in range(len(candidates.candidates['pos'])):
+        for i in range(len(are)):
             ev = are[i]/areasum*np.random.random()
             candidates.evaluations[i] = ev
-        
         return candidates
 
 class Observation(GroundedAction):
@@ -42,7 +40,6 @@ class Observation(GroundedAction):
         pass
 
 class MapExploration(GroundedAction):
-    
     def _gen_candidates(self):
         pass
 

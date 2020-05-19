@@ -257,7 +257,7 @@ def main():
     ## you can set goal any time not only after call start().
     ms.start() ## make goal appended to queue, executable
     ms.set_goal_relative_xy(0.5, 0, True) ## set scheduler a goal that go ahead 0.5 from robot body
-    # ms.set_goal_relative(3, 3) ## relative (x:front:3, y:left:3)
+    ms.set_goal_relative_xy(-0.5, 1) ## relative (x:front:-0.5, y:left:1)
     time.sleep(30)
     ms.set_goal_relative_xy(0.5, 0, True)
     time.sleep(30)

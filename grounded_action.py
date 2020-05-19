@@ -26,9 +26,7 @@ class GroundedStep():
         pass
 
 class GroundedAction(metaclass=ABCMeta):
-    
     count = 0
-
     def __init__(self, name, client: ros_mobile_client.MobileClient):
         self.action_id = GroundedAction.count
         self.action_name = name
