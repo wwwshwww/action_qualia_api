@@ -38,58 +38,6 @@ class PointCluster():
             clusters[v].append(points[i])
         return clusters
 
-    # def get_clusters(self, size, target, erea_start=0, erea_end=None):
-    #     if erea_end is None: 
-    #         erea_end = len(self.img)-1
-    #     # points = np.where(im>=255)
-    #     # points = np.where(self.img<50)
-    #     points = np.where(self.img==target)
-    #     used = np.full_like(self.img, False)
-    #     clusters = collections.deque()
-
-    #     for (i, j) in zip(points[0], points[1]):
-    #         ##print(used[i,j], (i,j))
-    #         if used[i,j]: continue
-    #         ##print(f"\n===={i,j}====\n")
-    #         tmp = collections.deque()
-    #         clust = collections.deque()
-    #         tmp.append((i, j))
-    #         clust.append((i, j))
-    #         used[i,j] = True
-    #         while not len(tmp)==0:
-    #             ##print(tmp)
-    #             pt = tmp.pop()
-    #             si = max(erea_start, pt[0]-size)
-    #             ei = min(erea_end, pt[0]+size)
-    #             sj = max(erea_start, pt[1]-size)
-    #             ej = min(erea_end, pt[1]+size)
-    #             # erea = self.img[si:ei+1, sj:ej+1]
-    #             # print((i,j),erea)
-    #             grid_i, grid_j = np.meshgrid(range(si,ei+1), range(sj,ej+1), indexing='ij')
-    #             print(grid_i, grid_j)
-    #             dis_i = (grid_i-pt[0])**2
-    #             # print(dis_i)
-    #             dis_j = (grid_j-pt[1])**2
-    #             # print(dis_j)
-    #             dis_filter = np.sqrt(dis_i+dis_j)<=size
-    #             print(dis_filter.shape, self.img[si:ei+1, sj:ej+1].shape)
-    #             ### f = np.where(np.logical_and(self.img[si:ei+1, sj:ej+1]>=255, dis_filter))
-    #             f = np.where(np.logical_and(self.img[si:ei+1, sj:ej+1]==target, dis_filter))
-    #             print(f)
-    #             ##print(f)
-
-    #             for (ii, jj) in zip(f[0], f[1]):
-    #                 tmp_p = (grid_i[ii,jj], grid_j[ii,jj])
-    #                 ##print(tmp_p)
-    #                 if used[tmp_p]: continue
-    #                 used[tmp_p] = True
-    #                 ##print(tmp_p,"2")
-    #                 tmp.append(tmp_p)
-    #                 clust.append(tmp_p)
-    #         clusters.append(clust)
-
-    #     return clusters
-
 class ObstacleMap():
     def __init__(self, map_img):
         self.map_img = map_img
@@ -169,7 +117,6 @@ def get_convex_points(points) -> np.ndarray:
 def get_hull_area(points):
     if len(points)<=2:
         return 0.
-    t = 0
     t = [np.cross(points[i], points[0]) if i == len(points)-1 else np.cross(points[i], points[i+1]) for i in range(len(points))]
     return np.abs(np.sum(t))*0.5
 
