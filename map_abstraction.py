@@ -1,5 +1,7 @@
 import numpy as np
 
+from typing import Tuple
+
 def get_test_img():
     im = np.zeros([500, 500], dtype=int)
     im[2,2:10] = 255
@@ -18,7 +20,7 @@ def get_test_img():
     return im
 
 class AbstMap():
-    def __init__(self, super_map: np.ndarray, split_shape: tuple):
+    def __init__(self, super_map: np.ndarray, split_shape):
         self.pad_value = -2
         self.map_data = self.padding_for_split(super_map, split_shape, self.pad_value)
         self.split_shape = split_shape
@@ -39,13 +41,37 @@ class AbstMap():
         ## padding at top
         return np.pad(img, tuple((i,0) for i in split_shape-mods), constant_values=(pad_value,pad_value))
 
+    def trim(self, index: Tuple[int]):
+        trim_slice = tuple(slice(n*self.resolutions[i], (n+1)*self.resolutions[i]) for i,n in enumerate(index))
+        return self.map_data[trim_slice]
+
+    def _df(self, arr, func: callable, kwargs=None, index_list=None):
+        if index_list is None:
+            index_list = []
+        if len(index_list)==len(self.split_shape):
+            ti = tuple(index_list)
+            t = self.trim(ti)
+            arr[ti] = func(t, **kwargs)
+            return
+        
+        for i in range(self.split_shape[len(index_list)]):
+            ti = list(index_list)
+            ti.append(i)
+            self._df(arr, func, kwargs, ti)
+        
+    def _density(self, arr: np.ndarray, val) -> float:
+        return len(np.where(arr==val)[0])/self.resol_par_mesh
+
     def density_mesh(self, target) -> np.ndarray:
         dens = np.zeros(self.split_shape)
+        self._df(dens, self._density, {'val':target})
+
         ## for 2D map
-        for i in range(len(dens)):
-            for j in range(len(dens[0])):
-                t = self.map_data[i*self.resolutions[0]:(i+1)*self.resolutions[0],j*self.resolutions[1]:(j+1)*self.resolutions[1]]
-                dens[i,j] = len(np.where(t==target)[0])/self.resol_par_mesh
+        # for i in range(len(dens)):
+        #     for j in range(len(dens[0])):
+        #         t = self.trim((i,j))
+        #         dens[i,j] = len(np.where(t==target)[0])/self.resol_par_mesh
+
         return dens
 
 def main():
