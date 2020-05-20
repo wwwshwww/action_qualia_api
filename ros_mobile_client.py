@@ -189,15 +189,15 @@ class MobileClient():
     def get_index_from_coordinates(self, xy: tuple) -> (int, int):
         return xy[1] + self.map_padsize_y, xy[0] - self.map_padsize_x
 
-    def create_message_move_base_goal(self, position: tuple, orientation: np.quaternion) -> rlp.Message:
+    def create_message_move_base_goal(self, position: np.quaternion, orientation: np.quaternion) -> rlp.Message:
         message = {
             'target_pose': {
                 'header': self.map_header,
                 'pose': {
                     'position': {
-                        'x': position[0],
-                        'y': position[1],
-                        'z': position[2]
+                        'x': position.x,
+                        'y': position.y,
+                        'z': position.z
                     },
                     'orientation': {
                         'x': orientation.x,
@@ -227,7 +227,7 @@ class MobileClient():
 
         self.mb_scheduler.append_goal(inner)
 
-    def set_goal(self, position: tuple, orientation: np.quaternion):
+    def set_goal(self, position: np.quaternion, orientation: np.quaternion):
         lm = lambda: self.create_message_move_base_goal(position, orientation)
         self._log_set(position)
         self.mb_scheduler.append_goal(lm)

@@ -146,7 +146,7 @@ def get_obstacles(img, threshhold, target) -> List[Obstacle]:
     pc = PointCluster(img)
     om = ObstacleMap(img)
     clusters = pc.get_clusters(threshhold, target)
-    print(clusters)
+    # print(clusters)
     # ob_idとかちゃんとセットしよう
     obs = [None]*len(clusters)
     for i, o in enumerate(clusters):

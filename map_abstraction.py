@@ -3,20 +3,20 @@ import numpy as np
 from typing import Tuple
 
 def get_test_img():
-    im = np.zeros([500, 500], dtype=int)
-    im[2,2:10] = 255
-    im[4,4] = 255
-    im[4,35] = 255
-    im[42,7] = 255
-    im[48, 40] = 255
-    im[25,1] = 255
-    im[22,26] = 255
-    im[23,25] = 255
-    im[24,24] = 255
-    im[29,29] = 255
+    im = np.full([500, 500], 255, dtype=int)
+    im[2,2:10] = 0
+    im[4,4] = 0
+    im[4,35] = 0
+    im[42,7] = 0
+    im[48, 40] = 0
+    im[25,1] = 0
+    im[22,26] = 0
+    im[23,25] = 0
+    im[24,24] = 0
+    im[29,29] = 0
 
-    im[455,455] = 255
-    im[451,456] = 255
+    im[455,455] = 0
+    im[451,456] = 0
     return im
 
 class AbstMap():

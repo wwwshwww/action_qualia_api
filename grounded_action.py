@@ -4,18 +4,18 @@ import numpy as np
 import quaternion
 
 from abc import ABCMeta, abstractmethod
-from typing import List, Dict
+from typing import List, Dict, TypeVar
 
 class GroundedActionPool():
-    def __init__(self, actions: List[GroundedAction]):
+    def __init__(self, actions: List[TypeVar('GroundedAction')]):
         self.pool = {n.action_name : n for n in actions}
 
-    def append_action(self, actions: List[GroundedAction]):
+    def append_action(self, actions: List[TypeVar('GroundedAction')]):
         self.pool.update({n.action_name : n for n in actions})
 
 class GroundedStep():
     ## candidates: Dict['pos': List[np.quaternion], 'ori': List[np.quaternion]]
-    def __init__(self, owner: GroundedAction, **candidates: List):
+    def __init__(self, owner: TypeVar('GroundedAction'), **candidates: List):
         self.owner = owner
         self.candidates: Dict[str:List] = {c: candidates[c] for c in candidates}
         self.evaluations: List[float] = [None]*len(candidates['pos'])
@@ -39,7 +39,7 @@ class GroundedAction(metaclass=ABCMeta):
         raise NotImplementedError
 
     @abstractmethod
-    def _evaluate(self, candidates: GroundedStep):
+    def _evaluate(self, candidates: GroundedStep) -> GroundedStep:
         raise NotImplementedError
 
     def _logging(self, step: GroundedStep):
