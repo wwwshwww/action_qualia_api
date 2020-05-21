@@ -62,12 +62,11 @@ class AreaChecker():
         q.append(pos_tup)
         while len(q) != 0:
             p = q.pop()
-            img_map[p] = 255
+            img_map[p] = self.padded_map[p]
 
             pl = [None]*(dim*2)
             for i in range(dim):
                 pl[i] = tuple(p[j]+(i==j) for j in range(dim))
-            for i in range(dim):
                 pl[i+1*dim] = tuple(p[j]-(i==j) for j in range(dim))
             
             for ppp in pl:
@@ -77,10 +76,10 @@ class AreaChecker():
                         q.append(ppp)
                     elif self.padded_map[ppp] == COLOR_UNKOWN:
                         used[ppp] = True
-                        img_map[ppp] = -1
+                        img_map[ppp] = COLOR_UNKOWN
                     elif self.padded_map[ppp] == COLOR_OBSTACLE:
                         used[ppp] = True
-                        img_map[ppp] = 0
+                        img_map[ppp] = COLOR_OBSTACLE
         
         inf = tuple(0 for _ in range(dim))
         target = tuple(p+ps for p in pos)
