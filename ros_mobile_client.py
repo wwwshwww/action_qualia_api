@@ -177,9 +177,13 @@ class MobileClient():
         goal_orient = base_orient*rel_orient
         return goal_vec, goal_orient
 
+    def get_orientation_from_body(self, position: np.quaternion):
+        bp = np.quaternion(0, *self.position)
+        return self.get_relative_orientation(position-bp)
+
     def get_base_pose_from_body(self, position: np.quaternion, orientation=np.quaternion(1,0,0,0)):
-        body_pos = np.quaternion(0, *self.position)
-        return self.get_base_pose(body_pos, self.orientation, position, orientation)
+        bp = np.quaternion(0, *self.position)
+        return self.get_base_pose(bp, self.orientation, position, orientation)
 
     ## map img's (i,j) to base map's (x,y)
     def get_coordinates_from_map(self, ij: tuple) -> (int, int):

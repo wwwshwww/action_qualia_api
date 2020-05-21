@@ -5,32 +5,47 @@ import time
 
 import ros_mobile_client as rmc
 from grounded_action import GroundedAction, GroundedActionPool, GroundedStep
-import obstacle_abstraction as oa
+import area_globalization as ag
+from occupancygrid_tools import AreaChecker
 
-from typing import List, Dict
+from typing import List, Dict, Sequence
 
-abstraction_thresh = 7
-ob_color = 0
+COLOR_OBSTACLE = 0
+COLOR_UNKNOWN = -1
+COLOR_PASSABLE = 255
+
+obs_thresh = 7
+unk_thresh = 2
+
+sel_count = 3
+
+def random_select(l: Sequence, c: int=sel_count) -> List:
+    lol = list(l)
+    return [lol.pop(np.random.randint(len(lol))) for i in range(min(len(lol), c))]
         
 class AreaSelection(GroundedAction):
-    sel_count = 3
     def _gen_candidates(self) -> GroundedStep:
-        obs = oa.get_obstacles(self.mc.map_data, abstraction_thresh, ob_color)
+        obs = ag.get_obstacles(self.mc.map_data, obs_thresh, COLOR_OBSTACLE)
         filterd = list(filter(lambda o: o.convex_area>0, obs))
-        sel = [filterd.pop(np.random.randint(len(filterd))) for i in range(min(len(filterd), self.sel_count))]
+        sel = random_select(filterd)
+
         gs = [s.convex_center_of_gravity for s in sel]
         gsxy = [self.mc.get_coordinates_from_map(g) for g in gs]
+
         pos = [np.quaternion(0,g[0],g[1],0) for g in gsxy]
         ori = [np.quaternion(1,0,0,0) for n in range(len(pos))]
         are = [s.convex_area for s in sel]
+
         return GroundedStep(self, pos=pos, ori=ori, are=are)
 
     def _evaluate(self, candidates: GroundedStep) -> GroundedStep:
         are = candidates.candidates['are']
         areasum = sum(are)
+
         for i in range(len(are)):
             ev = are[i]/areasum*np.random.random()
             candidates.evaluations[i] = ev
+
         candidates.selected_cand_id = np.argmax(candidates.evaluations)
         return candidates
 
@@ -43,7 +58,20 @@ class Observation(GroundedAction):
 
 class MapExploration(GroundedAction):
     def _gen_candidates(self):
-        pass
+        pos_to_index = tuple(map(int, self.mc.position))
+        ac = AreaChecker(self.mc.map_data, pos_to_index)
+        unks = ag.get_obstacles(ac.color_map, unk_thresh, COLOR_UNKNOWN)
+        sel = random_select(unks)
+
+        gs = [s.convex_center_of_gravity for s in sel]
+        gsxy = [self.mc.get_coordinates_from_map(g) for g in gs]
+
+        pos = [np.quaternion(0,g[0],g[1],0) for g in gsxy]
+        ori = [self.mc.get_orientation_from_body(g) for g in gsxy]
+        ori = [np.quaternion(1,0,0,0) for n in range(len(pos))]
+        are = [s.convex_area for s in sel]
+
+        return GroundedStep(self, pos=pos, ori=ori, are=are)
 
     def _evaluate(self, candidates):
         pass

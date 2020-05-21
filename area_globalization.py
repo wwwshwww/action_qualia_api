@@ -3,7 +3,7 @@ import collections
 import math
 from sklearn.cluster import DBSCAN
 
-from typing import List, Iterable
+from typing import List, Sequence
 
 import time
 
@@ -82,7 +82,7 @@ class Obstacle():
         self.child_threshold = threshhold
         self.child = get_obstacles(self.minimap, threshhold, target)
     
-def get_convex_points(points: Iterable[Iterable]) -> (Iterable[int], np.ndarray):
+def get_convex_points(points: Sequence[Sequence]) -> (Sequence[int], np.ndarray):
     if len(points) <= 2:
         return [i for i in range(len(points))], np.array(points)
     angl = np.zeros([len(points)])
