@@ -19,7 +19,7 @@ class GroundedStep():
         self.owner = owner
         self.candidates: Dict[str:List] = {c: candidates[c] for c in candidates}
         self.evaluations: List[float] = [None]*len(candidates['pos'])
-        self.selected_pose_id = -1
+        self.selected_cand_id = -1
         self.selected_action_id = -1
 
     def adopt(self):

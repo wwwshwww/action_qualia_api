@@ -31,6 +31,7 @@ class AreaSelection(GroundedAction):
         for i in range(len(are)):
             ev = are[i]/areasum*np.random.random()
             candidates.evaluations[i] = ev
+        candidates.selected_cand_id = np.argmax(candidates.evaluations)
         return candidates
 
 class Observation(GroundedAction):
@@ -56,7 +57,6 @@ class GAScheduler(GroundedAction):
         return [a.step() for a in self.pool]
 
     def _evaluate(self, candidates):
-
         pass
 
 def main():
@@ -80,8 +80,8 @@ def main():
     #         mc.set_goal(pos, ori)
 
     s = ga_are.step()
-    pos = s.candidates['pos'][0]
-    ori = s.candidates['ori'][0]
+    pos = s.candidates['pos'][s.selected_cand_id]
+    ori = s.candidates['ori'][s.selected_cand_id]
     mc.start()
     mc.set_goal(pos, ori)
     time.sleep(100)
