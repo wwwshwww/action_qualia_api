@@ -3,12 +3,12 @@ from collections import deque
 
 from typing import Tuple, Sequence
 
-COLOR_UNKOWN = -1
-COLOR_OBSTACLE = 0
-COLOR_PASSABLE = 255
+COLOR_UNKNOWN = -1
+COLOR_OBSTACLE = 100
+COLOR_PASSABLE = 0
 
 def get_test_img():
-    im = np.full([500, 500], COLOR_UNKOWN, dtype=int)
+    im = np.full([500, 500], COLOR_UNKNOWN, dtype=int)
     im[20:30,20:30] = COLOR_PASSABLE
     im[21,20] = COLOR_OBSTACLE
     im[2,2:10] = COLOR_OBSTACLE
@@ -30,7 +30,7 @@ class AreaChecker():
     pad_size = 1
     def __init__(self, occupancy_grid: np.ndarray, position: Tuple[int]):
         self.sig_map, self.start, self.stop = AreaChecker.significant_trim(occupancy_grid)
-        print(self.sig_map.shape, self.start, self.stop)
+        print(f'sigmap:{self.sig_map.shape}, start:{self.start}, stop:{self.stop}')
         pad_tup = tuple((AreaChecker.pad_size,0) for _ in range(len(position)))
         self.padded_map = np.pad(self.sig_map, pad_tup, constant_values=(-2,0))
         self.is_in_closed, self.color_map = self._coloring(position)
@@ -74,9 +74,9 @@ class AreaChecker():
                     if self.padded_map[ppp] == COLOR_PASSABLE:
                         used[ppp] = True
                         q.append(ppp)
-                    elif self.padded_map[ppp] == COLOR_UNKOWN:
+                    elif self.padded_map[ppp] == COLOR_UNKNOWN:
                         used[ppp] = True
-                        img_map[ppp] = COLOR_UNKOWN
+                        img_map[ppp] = COLOR_UNKNOWN
                     elif self.padded_map[ppp] == COLOR_OBSTACLE:
                         used[ppp] = True
                         img_map[ppp] = COLOR_OBSTACLE
@@ -85,7 +85,7 @@ class AreaChecker():
         target = tuple(p+ps for p in pos)
         col_slice = tuple(slice(ps,padded_shape[i]) for i in range(dim))
 
-        return not(img_map[inf]==img_map[target] or COLOR_UNKOWN in img_map), img_map[col_slice]
+        return not(img_map[inf]==img_map[target] or COLOR_UNKNOWN in img_map), img_map[col_slice]
 
 class AbstMap():
     def __init__(self, occupancy_grid: np.ndarray, split_shape):
@@ -95,9 +95,9 @@ class AbstMap():
         self.resolutions = np.array(self.map_data.shape)//split_shape
         self.resol_par_mesh = np.prod(self.resolutions)
 
-        self.density_obstacle = self.density_mesh(target=0)
-        self.density_road = self.density_mesh(target=255)
-        self.density_unknown = self.density_mesh(target=-1)
+        self.density_obstacle = self.density_mesh(target=COLOR_OBSTACLE)
+        self.density_road = self.density_mesh(target=COLOR_PASSABLE)
+        self.density_unknown = self.density_mesh(target=COLOR_UNKNOWN)
 
     @staticmethod
     def padding_for_split(img, split_shape, pad_value) -> (tuple, np.ndarray):
@@ -156,6 +156,7 @@ def main():
     ac = AreaChecker(img, (25,25))
     print(ac.sig_map, '\n', ac.color_map)
     print(f'is (25,25) in closed surface: {ac.is_in_closed}')
+    print(np.where(ac.color_map==COLOR_PASSABLE))
 
 if __name__ == '__main__':
     main()

@@ -7,21 +7,27 @@ from typing import List, Sequence
 
 import time
 
-def get_test_img():
-    im = np.zeros([500, 500], dtype=int)
-    im[2,2:10] = 255
-    im[4,4] = 255
-    im[4,35] = 255
-    im[42,7] = 255
-    im[48, 40] = 255
-    im[25,1] = 255
-    im[22,26] = 255
-    im[23,25] = 255
-    im[24,24] = 255
-    im[29,29] = 255
+COLOR_OBSTACLE = 100
+COLOR_UNKNOWN = -1
+COLOR_PASSABLE = 0
 
-    im[455,455] = 255
-    im[451,456] = 255
+def get_test_img():
+    im = np.full([500, 500], COLOR_UNKNOWN, dtype=int)
+    im[20:30,20:30] = COLOR_PASSABLE
+    im[21,20] = COLOR_OBSTACLE
+    im[2,2:10] = COLOR_OBSTACLE
+    im[4,4] = COLOR_OBSTACLE
+    im[4,35] = COLOR_OBSTACLE
+    im[42,7] = COLOR_OBSTACLE
+    im[48, 40] = COLOR_OBSTACLE
+    im[25,1] = COLOR_OBSTACLE
+    im[22,26] = COLOR_OBSTACLE
+    im[23,25] = COLOR_OBSTACLE
+    im[24,24] = COLOR_OBSTACLE
+    im[29,29] = COLOR_OBSTACLE
+
+    im[455,455] = COLOR_OBSTACLE
+    # im[451,456] = COLOR_OBSTACLE
     return im
 
 class PointCluster():
@@ -156,7 +162,7 @@ def get_obstacles(img, threshhold, target) -> List[Obstacle]:
 def main():
     st = time.time()
     img = get_test_img()
-    obs = get_obstacles(img, 4, 255)
+    obs = get_obstacles(img, 4, COLOR_UNKNOWN)
     for o in obs:
         print(f'==\np:{o.convex_points},\narea:{o.convex_area},\ngra:{o.convex_center_of_gravity}')
     print(time.time()-st)

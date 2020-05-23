@@ -139,9 +139,9 @@ class MobileClient():
         self.map_header = message['header']
         self.map_info = message['info']
         self.map_resolution = self.map_info['resolution']
-        self.map_padsize_x = self.map_info['width']//2
-        self.map_padsize_y = self.map_info['height']//2
-        self.map_data = np.array(message['data']).reshape([self.map_info['height'],self.map_info['width']])
+        self.map_resol_i = self.map_info['height']//2
+        self.map_resol_j = self.map_info['width']//2
+        self.map_data = np.array(message['data']).reshape([self.map_info['height'],self.map_info['width']]).T
         self.is_get_map = True
 
     def _update_odometry(self, message):
@@ -186,12 +186,16 @@ class MobileClient():
         return self.get_base_pose(bp, self.orientation, position, orientation)
 
     ## map img's (i,j) to base map's (x,y)
-    def get_coordinates_from_map(self, ij: tuple) -> (int, int):
-        return ij[1] - self.map_padsize_x, ij[0] - self.map_padsize_y
+    def get_coordinates_from_index(self, ij: tuple) -> (float, float):
+        p = (ij[0]-self.map_resol_i)*self.map_resolution, (ij[1]-self.map_resol_j)*self.map_resolution
+        print(f'ij {ij} to {p}')
+        return p
 
     ## base map's (x,y) to base map's (i,j)
     def get_index_from_coordinates(self, xy: tuple) -> (int, int):
-        return xy[1] + self.map_padsize_y, xy[0] - self.map_padsize_x
+        p = self.map_resol_i+int(xy[0]/self.map_resolution), self.map_resol_j+int(xy[1]/self.map_resolution)
+        print(f'xy {xy} to {p}')
+        return p
 
     def create_message_move_base_goal(self, position: np.quaternion, orientation: np.quaternion) -> rlp.Message:
         message = {
@@ -260,11 +264,12 @@ def main():
 
     ## you can set goal any time not only after call start().
     ms.start() ## make goal appended to queue, executable
-    ms.set_goal_relative_xy(0.5, 0, True) ## set scheduler a goal that go ahead 0.5 from robot body
-    ms.set_goal_relative_xy(-0.5, 1) ## relative (x:front:-0.5, y:left:1)
+#     ms.set_goal_relative_xy(0.5, 0, True) ## set scheduler a goal that go ahead 0.5 from robot body
+#     ms.set_goal_relative_xy(-0.5, 1) ## relative (x:front:-0.5, y:left:1)
+    ms.set_goal(np.quaternion(0,-0.4,-0.6,0), quaternion.from_euler_angles(0,0,1.0))
     time.sleep(30)
-    ms.set_goal_relative_xy(0.5, 0, True)
-    time.sleep(30)
+#     ms.set_goal_relative_xy(0.5, 0, True)
+#     time.sleep(30)
     ms.stop()
     print('finish')
 

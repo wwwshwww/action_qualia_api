@@ -10,9 +10,12 @@ from occupancygrid_tools import AreaChecker
 
 from typing import List, Dict, Sequence
 
-COLOR_OBSTACLE = 0
+import matplotlib.pyplot as plt
+# %matplotlib inline
+
+COLOR_OBSTACLE = 100
 COLOR_UNKNOWN = -1
-COLOR_PASSABLE = 255
+COLOR_PASSABLE = 0
 
 obs_thresh = 7
 unk_thresh = 2
@@ -20,8 +23,7 @@ unk_thresh = 2
 sel_count = 3
 
 def random_select(l: Sequence, c: int=sel_count) -> List:
-    lol = list(l)
-    return [lol.pop(np.random.randint(len(lol))) for i in range(min(len(lol), c))]
+    return [l.pop(np.random.randint(len(l))) for i in range(min(len(l), c))]
         
 class AreaSelection(GroundedAction):
     def _gen_candidates(self) -> GroundedStep:
@@ -30,10 +32,10 @@ class AreaSelection(GroundedAction):
         sel = random_select(filterd)
 
         gs = [s.convex_center_of_gravity for s in sel]
-        gsxy = [self.mc.get_coordinates_from_map(g) for g in gs]
+        gsxy = [self.mc.get_coordinates_from_index(g) for g in gs]
 
         pos = [np.quaternion(0,g[0],g[1],0) for g in gsxy]
-        ori = [np.quaternion(1,0,0,0) for n in range(len(pos))]
+        ori = [self.mc.orientation for n in range(len(pos))]
         are = [s.convex_area for s in sel]
 
         return GroundedStep(self, pos=pos, ori=ori, are=are)
@@ -58,23 +60,37 @@ class Observation(GroundedAction):
 
 class MapExploration(GroundedAction):
     def _gen_candidates(self):
-        pos_to_index = tuple(map(int, self.mc.position))
-        ac = AreaChecker(self.mc.map_data, pos_to_index)
+        ac = AreaChecker(self.mc.map_data, self.mc.get_index_from_coordinates(self.mc.position))
+        print(np.unique(ac.color_map), ac.color_map.shape)
         unks = ag.get_obstacles(ac.color_map, unk_thresh, COLOR_UNKNOWN)
+        print(f'found unknown area: {len(unks)}')
         sel = random_select(unks)
 
-        gs = [s.convex_center_of_gravity for s in sel]
-        gsxy = [self.mc.get_coordinates_from_map(g) for g in gs]
+#         plt.gray()
+#         ac.color_map[ac.color_map==-1] = 50
+#         plt.imshow(ac.color_map)
+#         plt.imshow(self.mc.map_data)
+
+        gs = [s.convex_center_of_gravity+ac.start for s in sel]
+        print(f'gs: {gs}')
+        gsxy = [self.mc.get_coordinates_from_index(g) for g in gs]
 
         pos = [np.quaternion(0,g[0],g[1],0) for g in gsxy]
-        ori = [self.mc.get_orientation_from_body(g) for g in gsxy]
-        ori = [np.quaternion(1,0,0,0) for n in range(len(pos))]
+        ori = [self.mc.get_orientation_from_body(g) for g in pos]
         are = [s.convex_area for s in sel]
 
         return GroundedStep(self, pos=pos, ori=ori, are=are)
 
     def _evaluate(self, candidates):
-        pass
+        are = candidates.candidates['are']
+        areasum = sum(are)
+
+        for i in range(len(are)):
+            ev = 0 if areasum == 0 else are[i]/areasum
+            candidates.evaluations[i] = ev
+
+        candidates.selected_cand_id = np.argmax(candidates.evaluations)
+        return candidates
 
 class GAScheduler(GroundedAction):
     def __init__(self, name, client, pool):
@@ -94,6 +110,7 @@ def main():
 
     mc = rmc.MobileClient(rosclient, lambda *s: print(f'【reached】 result: {s}'))
     mc.wait_for_ready()
+    print(f'pos: {mc.position}, map_shape: {mc.map_data.shape}')
     ga_map = MapExploration('map_exploration', mc)
     ga_are = AreaSelection('area_selection', mc)
     ga_obs = Observation('observation', mc)
@@ -107,15 +124,15 @@ def main():
     #         pos, ori = sched.step()
     #         mc.set_goal(pos, ori)
 
-    s = ga_are.step()
+    s = ga_map.step()
     pos = s.candidates['pos'][s.selected_cand_id]
     ori = s.candidates['ori'][s.selected_cand_id]
     mc.start()
     mc.set_goal(pos, ori)
-    time.sleep(100)
+    time.sleep(15)
     mc.stop()
     rosclient.terminate()
-    print(s)
+    print(s.candidates)
 
 if __name__ == '__main__':
     main()
