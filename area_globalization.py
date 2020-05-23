@@ -60,8 +60,9 @@ class Obstacle():
         self.points = points ## have coordinates of xy
         self.convex_index, self.convex_points = get_convex_points(points)
         self.convex_area = get_hull_area(self.convex_points)
-        self.convex_center_of_gravity = get_center_of_gravity(self.convex_points)
+        self.convex_gravity = get_center_of_gravity(self.convex_points)
         self.minimap_start, self.minimap_end, self.minimap = self.minimapping()
+        self.diameter = math.sqrt((self.minimap_end[0]+1-self.minimap_start[0])**2+(self.minimap_end[1]+1-self.minimap_start[1])**2)
         self.child: List[int] = None ## have ob_id
         self.child_threshold = None
 
@@ -162,9 +163,9 @@ def get_obstacles(img, threshhold, target) -> List[Obstacle]:
 def main():
     st = time.time()
     img = get_test_img()
-    obs = get_obstacles(img, 4, COLOR_UNKNOWN)
+    obs = get_obstacles(img, 4, COLOR_PASSABLE)
     for o in obs:
-        print(f'==\np:{o.convex_points},\narea:{o.convex_area},\ngra:{o.convex_center_of_gravity}')
+        print(f'==\np:{o.convex_points},\narea:{o.convex_area},\ngra:{o.convex_gravity}')
     print(time.time()-st)
 
 if __name__ == "__main__":

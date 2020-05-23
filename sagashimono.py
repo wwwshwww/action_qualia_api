@@ -17,8 +17,10 @@ COLOR_OBSTACLE = 100
 COLOR_UNKNOWN = -1
 COLOR_PASSABLE = 0
 
-obs_thresh = 7
-unk_thresh = 2
+obs_thresh = 3
+unk_thresh = 3
+view_options = 10
+view_r = 4
 
 sel_count = 3
 
@@ -31,7 +33,7 @@ class AreaSelection(GroundedAction):
         filterd = list(filter(lambda o: o.convex_area>0, obs))
         sel = random_select(filterd)
 
-        gs = [s.convex_center_of_gravity for s in sel]
+        gs = [s.convex_gravity for s in sel]
         gsxy = [self.mc.get_coordinates_from_index(g) for g in gs]
 
         pos = [np.quaternion(0,g[0],g[1],0) for g in gsxy]
@@ -53,10 +55,35 @@ class AreaSelection(GroundedAction):
 
 class Observation(GroundedAction):
     def _gen_candidates(self):
-        pass
+        obs = ag.get_obstacles(self.mc.map_data, obs_thresh, COLOR_OBSTACLE)
+        selob = obs[np.argmin([o.convex_area for o in obs])]
+        del obs
 
-    def _evaluate(self, candidates):
-        pass
+        selob_r = selob.diameter/2
+        selob_vec = selob.convex_gravity+selob_r+view_r
+
+        yaws = np.random.random([view_options])*(np.pi*2)
+        qs = np.array([quaternion.from_euler_angles(0,0,y) for y in yaws])
+        vs = np.array([np.quaternion(0,selob_vec,0,0) for _ in range(view_options)])
+        vecs = filter(lambda q: \
+            0<q.x and q.x<self.mc.map_data.shape[0] and \
+            0<q.y and q.y<self.mc.map_data.shape[1], \
+            qs*vs*qs.conj())
+        vecs = list(filter(lambda q: self.mc.map_data[int(q.x),int(q.y)]==COLOR_PASSABLE, vecs))
+        sel = random_select(vecs)
+
+        pos = [self.mc.get_coordinates_from_index((q.x, q.y)) for q in sel]
+        selob_g_qua = np.quaternion(0,selob.convex_gravity[0],selob.convex_gravity[1],0)
+        ori = [self.mc.get_relative_orientation(p-selob_g_qua) for p in sel]
+
+        return GroundedStep(self, pos=pos, ori=ori)
+
+    def _evaluate(self, candidates: GroundedStep):
+        ## all random evaluation
+        evas = np.random.random([len(candidates.candidates['pos'])])
+        evsum = np.sum(evas)
+        candidates.evaluations = evas/evsum
+        return candidates
 
 class MapExploration(GroundedAction):
     def _gen_candidates(self):
@@ -66,12 +93,7 @@ class MapExploration(GroundedAction):
         print(f'found unknown area: {len(unks)}')
         sel = random_select(unks)
 
-#         plt.gray()
-#         ac.color_map[ac.color_map==-1] = 50
-#         plt.imshow(ac.color_map)
-#         plt.imshow(self.mc.map_data)
-
-        gs = [s.convex_center_of_gravity+ac.start for s in sel]
+        gs = [s.convex_gravity+ac.start for s in sel]
         print(f'gs: {gs}')
         gsxy = [self.mc.get_coordinates_from_index(g) for g in gs]
 
