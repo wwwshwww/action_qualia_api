@@ -20,7 +20,7 @@ COLOR_PASSABLE = 0
 obs_thresh = 3
 unk_thresh = 3
 view_options = 10
-view_r = 4
+view_r = 6
 
 sel_count = 3
 
@@ -43,6 +43,7 @@ class AreaSelection(GroundedAction):
         return GroundedStep(self, pos=pos, ori=ori, are=are)
 
     def _evaluate(self, candidates: GroundedStep) -> GroundedStep:
+        if len(candidates.candidates)==0: return candidates
         are = candidates.candidates['are']
         areasum = sum(are)
 
@@ -56,33 +57,40 @@ class AreaSelection(GroundedAction):
 class Observation(GroundedAction):
     def _gen_candidates(self):
         obs = ag.get_obstacles(self.mc.map_data, obs_thresh, COLOR_OBSTACLE)
-        selob = obs[np.argmin([o.convex_area for o in obs])]
+        print(f'found obstacles: {len(obs)}')
+        selob = random_select(obs)
+        selob = selob[np.argmin([o.convex_area for o in selob])]
+        print(f'selected: {selob.convex_gravity}')
         del obs
 
         selob_r = selob.diameter/2
-        selob_vec = selob.convex_gravity+selob_r+view_r
+        selob_vec = selob_r+view_r
+        selob_g_qua = np.quaternion(0,selob.convex_gravity[0],selob.convex_gravity[1],0)
 
         yaws = np.random.random([view_options])*(np.pi*2)
         qs = np.array([quaternion.from_euler_angles(0,0,y) for y in yaws])
         vs = np.array([np.quaternion(0,selob_vec,0,0) for _ in range(view_options)])
-        vecs = filter(lambda q: \
-            0<q.x and q.x<self.mc.map_data.shape[0] and \
-            0<q.y and q.y<self.mc.map_data.shape[1], \
-            qs*vs*qs.conj())
+        
+        vecs = list(filter(lambda q: 0<=q.x and q.x<self.mc.map_data.shape[0] and 0<=q.y and q.y<self.mc.map_data.shape[1], selob_g_qua+qs*vs*qs.conj()))
+        print(f'1 filterd vecs: {vecs}')
         vecs = list(filter(lambda q: self.mc.map_data[int(q.x),int(q.y)]==COLOR_PASSABLE, vecs))
+        print(f'2 filterd vecs: {vecs}')
         sel = random_select(vecs)
 
         pos = [self.mc.get_coordinates_from_index((q.x, q.y)) for q in sel]
-        selob_g_qua = np.quaternion(0,selob.convex_gravity[0],selob.convex_gravity[1],0)
-        ori = [self.mc.get_relative_orientation(p-selob_g_qua) for p in sel]
+        posq = [np.quaternion(0,p[0],p[1],0) for p in pos]
+        ori = [self.mc.get_relative_orientation(selob_g_qua-q) for q in sel]
+#         ori = [self.mc.orientation for _ in sel]
 
-        return GroundedStep(self, pos=pos, ori=ori)
+        return GroundedStep(self, pos=posq, ori=ori)
 
     def _evaluate(self, candidates: GroundedStep):
+        if len(candidates.candidates)==0: return candidates
         ## all random evaluation
         evas = np.random.random([len(candidates.candidates['pos'])])
         evsum = np.sum(evas)
         candidates.evaluations = evas/evsum
+        candidates.selected_cand_id = np.argmax(candidates.evaluations)
         return candidates
 
 class MapExploration(GroundedAction):
@@ -104,6 +112,7 @@ class MapExploration(GroundedAction):
         return GroundedStep(self, pos=pos, ori=ori, are=are)
 
     def _evaluate(self, candidates):
+        if len(candidates.candidates)==0: return candidates
         are = candidates.candidates['are']
         areasum = sum(are)
 
@@ -146,15 +155,16 @@ def main():
     #         pos, ori = sched.step()
     #         mc.set_goal(pos, ori)
 
-    s = ga_map.step()
+    s = ga_obs.step()
     pos = s.candidates['pos'][s.selected_cand_id]
     ori = s.candidates['ori'][s.selected_cand_id]
     mc.start()
     mc.set_goal(pos, ori)
-    time.sleep(15)
+    while not (mc.is_freetime and mc.is_reached):
+        time.sleep(0.5)
     mc.stop()
     rosclient.terminate()
-    print(s.candidates)
+    print(f'finished {s.candidates}')
 
 if __name__ == '__main__':
     main()

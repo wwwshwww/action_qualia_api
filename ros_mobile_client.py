@@ -132,7 +132,11 @@ class MobileClient():
 
     @property
     def is_reached(self):
-        return not self.mb_scheduler.state<<1
+        return not self.mb_scheduler.state>>1&1
+
+    @property
+    def is_freetime(self):
+        return self.mb_scheduler.state&1
 
     ## need to make to be changed design pattern 'update_**'
     def _update_map(self, message):
@@ -166,8 +170,9 @@ class MobileClient():
 
     @staticmethod
     def get_relative_orientation(rel_vec: np.quaternion) -> np.quaternion:
-        ## rotate angle (alpha,beta,gamma):(atan(z/y),atan(z/x),atan(y/x))
-        to_angle = (math.atan2(rel_vec.z, rel_vec.y), math.atan2(rel_vec.z, rel_vec.x), math.atan2(rel_vec.y,rel_vec.x))
+        ## rotate angle (alpha,beta,gamma):(atan(y/z),atan(z/x),atan(x/y))
+        ## don't change
+        to_angle = (math.atan2(rel_vec.y, rel_vec.z), math.atan2(rel_vec.z, rel_vec.x), math.atan2(rel_vec.x,rel_vec.y))
         return quaternion.from_euler_angles(to_angle)
 
     @staticmethod
