@@ -138,6 +138,10 @@ class MobileClient():
     def is_freetime(self):
         return self.mb_scheduler.state&1
 
+    def wait_for_goal_accepted(self, rate=0.5):
+        while not (self.is_freetime and self.is_reached):
+            time.sleep(rate)
+
     ## need to make to be changed design pattern 'update_**'
     def _update_map(self, message):
         self.map_header = message['header']

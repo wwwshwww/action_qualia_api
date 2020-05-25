@@ -18,7 +18,7 @@ class GroundedStep():
     def __init__(self, owner: TypeVar('GroundedAction'), **candidates: List):
         self.owner = owner
         self.candidates: Dict[str:List] = {c: candidates[c] for c in candidates}
-        self.evaluations: np.ndarray = np.zeros([len(candidates['pos'])])
+        self.evaluations: np.ndarray = np.zeros([len(list(candidates.keys())[0])])
         self.selected_cand_id = -1
 
     def adopt(self):
@@ -46,7 +46,7 @@ class GroundedAction(metaclass=ABCMeta):
 
     def step(self):
         candi = self._gen_candidates()
-        step = self._evaluate(candi)
-        self._logging(step)
-        return step
+        self._logging(candi)
+        stp = self._evaluate(candi)
+        return stp
 

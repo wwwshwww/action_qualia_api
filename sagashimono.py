@@ -128,11 +128,20 @@ class GAScheduler(GroundedAction):
         super().__init__(name, client)
         self.pool = pool
 
-    def _gen_candidates(self) -> List[GroundedStep]:
-        return [a.step() for a in self.pool]
+    def _gen_candidates(self) -> GroundedStep:
+        stps = [ga.step() for ga in self.pool.pool.values()]
+        return GroundedStep(self, stp=stps)
 
-    def _evaluate(self, candidates):
-        pass
+    def _evaluate(self, candidates) -> GroundedStep:
+        stps = candidates.candidates['stp']
+        e = np.array([0 if s.selected_cand_id==-1 else 1 for s in stps])
+        
+        ## all random evaluation
+        evas = np.random.random([len(candidates.candidates['stp'])])*e
+        evsum = np.sum(evas)
+        candidates.evaluations = evas/evsum
+        candidates.selected_cand_id = np.argmax(candidates.evaluations)
+        return stps[candidates.selected_cand_id]
 
 def main():
     rosclient = roslibpy.Ros('10.244.1.176', port=9090)
@@ -146,22 +155,21 @@ def main():
     ga_are = AreaSelection('area_selection', mc)
     ga_obs = Observation('observation', mc)
     
-    # pool_grounded = GroundedActionPool([ga_map, ga_are, ga_obs])
+    pool_grounded = GroundedActionPool([ga_map, ga_are, ga_obs])
+    ga_sched = GAScheduler('top_scheduler', mc, pool_grounded)
 
-    # sched = GAScheduler('top_scheduler', mc, pool_grounded)
-
-    # while(True):
-    #     if mc.is_reached:
-    #         pos, ori = sched.step()
-    #         mc.set_goal(pos, ori)
-
-    s = ga_obs.step()
-    pos = s.candidates['pos'][s.selected_cand_id]
-    ori = s.candidates['ori'][s.selected_cand_id]
     mc.start()
-    mc.set_goal(pos, ori)
-    while not (mc.is_freetime and mc.is_reached):
-        time.sleep(0.5)
+    # ------------------------------------------------
+
+    for i in range(10):
+        s = ga_sched.step()
+        pos = s.candidates['pos'][s.selected_cand_id]
+        ori = s.candidates['ori'][s.selected_cand_id]
+        
+        mc.set_goal(pos, ori)
+        mc.wait_for_goal_accepted()
+    
+    # ------------------------------------------------
     mc.stop()
     rosclient.terminate()
     print(f'finished {s.candidates}')
